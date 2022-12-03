@@ -1,5 +1,5 @@
 use anyhow::Result;
-use itertools::Itertools; //{rev, sorted};
+use itertools::Itertools;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
