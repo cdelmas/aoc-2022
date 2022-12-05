@@ -1,6 +1,7 @@
 mod day1;
 mod day2;
 mod day3;
+mod day4;
 
 use std::path::PathBuf;
 
@@ -29,6 +30,12 @@ fn main() {
     let priorities_2 = day3::priorities_2(&PathBuf::from("data/day_3_part2_input.txt"));
     match priorities_2 {
         Ok(priorities_2) => println!("total priorities: {}", priorities_2),
+        Err(_) => eprintln!("Something went wrong…"),
+    }
+
+    let ship_unload_overlaps = day4::ship_unload_overlaps(&PathBuf::from("data/day_4_input.txt"));
+    match ship_unload_overlaps {
+        Ok(ship_unload_overlaps) => println!("Overlaps: {}", ship_unload_overlaps),
         Err(_) => eprintln!("Something went wrong…"),
     }
 }
