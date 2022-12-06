@@ -2,6 +2,7 @@ mod day1;
 mod day2;
 mod day3;
 mod day4;
+mod day5;
 
 use std::path::PathBuf;
 
@@ -36,6 +37,12 @@ fn main() {
     let ship_unload_overlaps = day4::ship_unload_overlaps(&PathBuf::from("data/day_4_input.txt"));
     match ship_unload_overlaps {
         Ok(ship_unload_overlaps) => println!("Overlaps: {}", ship_unload_overlaps),
+        Err(_) => eprintln!("Something went wrong…"),
+    }
+
+    let top_crate_of_stacks = day5::top_crate_of_stacks(&PathBuf::from("data/day_5_input.txt"));
+    match top_crate_of_stacks {
+        Ok(top_crate_of_stacks) => println!("Top crates of stacks: {}", top_crate_of_stacks),
         Err(_) => eprintln!("Something went wrong…"),
     }
 }
