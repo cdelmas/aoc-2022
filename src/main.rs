@@ -3,6 +3,7 @@ mod day2;
 mod day3;
 mod day4;
 mod day5;
+mod day6;
 
 use std::path::PathBuf;
 
@@ -43,6 +44,15 @@ fn main() {
     let top_crate_of_stacks = day5::top_crate_of_stacks(&PathBuf::from("data/day_5_input.txt"));
     match top_crate_of_stacks {
         Ok(top_crate_of_stacks) => println!("Top crates of stacks: {}", top_crate_of_stacks),
+        Err(_) => eprintln!("Something went wrong…"),
+    }
+
+    let markers = day6::fix_device(&PathBuf::from("data/day_6_input.txt"));
+    match markers {
+        Ok((start_stream, start_message)) => println!(
+            "Markers: start stream at {}, message at {}",
+            start_stream, start_message
+        ),
         Err(_) => eprintln!("Something went wrong…"),
     }
 }
