@@ -4,6 +4,7 @@ mod day3;
 mod day4;
 mod day5;
 mod day6;
+mod day7;
 
 use std::path::PathBuf;
 
@@ -53,6 +54,19 @@ fn main() {
             "Markers: start stream at {}, message at {}",
             start_stream, start_message
         ),
+        Err(_) => eprintln!("Something went wrong…"),
+    }
+
+    let small_directories = day7::total_size_of_small_directories_and_smallest_to_delete(
+        &PathBuf::from("data/day_7_input.txt"),
+    );
+    match small_directories {
+        Ok((total_small_directories_size, smallest_to_delete_size)) => {
+            println!(
+                "Total size of small directories: {}; smallest to delete: {}",
+                total_small_directories_size, smallest_to_delete_size
+            )
+        }
         Err(_) => eprintln!("Something went wrong…"),
     }
 }

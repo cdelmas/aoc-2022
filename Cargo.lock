@@ -7,6 +7,7 @@ name = "advent_code_2022"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "dendron",
  "itertools",
  "nom",
  "parameterized",
@@ -24,6 +25,12 @@ name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
+
+[[package]]
+name = "dendron"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aecde68ff39ed9f284abc433e403436d290eaa218cff78867c407937bc2083d5"
 
 [[package]]
 name = "either"
