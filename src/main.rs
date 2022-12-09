@@ -5,6 +5,7 @@ mod day4;
 mod day5;
 mod day6;
 mod day7;
+mod day8;
 
 use std::path::PathBuf;
 
@@ -67,6 +68,15 @@ fn main() {
                 total_small_directories_size, smallest_to_delete_size
             )
         }
+        Err(_) => eprintln!("Something went wrong…"),
+    }
+
+    let spot = day8::find_best_spot_for_tree_house(&PathBuf::from("data/day_8_input.txt"));
+    match spot {
+        Ok((visible_trees, best_spot)) => println!(
+            "{} visible trees around, {} is the best spot",
+            visible_trees, best_spot
+        ),
         Err(_) => eprintln!("Something went wrong…"),
     }
 }
