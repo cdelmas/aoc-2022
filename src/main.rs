@@ -6,6 +6,7 @@ mod day5;
 mod day6;
 mod day7;
 mod day8;
+mod day9;
 
 use std::path::PathBuf;
 
@@ -77,6 +78,12 @@ fn main() {
             "{} visible trees around, {} is the best spot",
             visible_trees, best_spot
         ),
+        Err(_) => eprintln!("Something went wrong…"),
+    }
+
+    let nb_tail_positions = day9::nb_tail_positions(&PathBuf::from("data/day_9_input.txt"));
+    match nb_tail_positions {
+        Ok(nb_tail_positions) => println!("Tail gone through {} positions buggy 🙈", nb_tail_positions),
         Err(_) => eprintln!("Something went wrong…"),
     }
 }
