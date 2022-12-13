@@ -11,12 +11,12 @@ const MESSAGE_MARKER_SIZE: usize = 14;
 #[error("Could not find the marker")]
 struct NotFoundError;
 
-fn find_marker(buffer: &Vec<char>, marker_len: usize) -> Result<usize> {
+fn find_marker(buffer: &[char], marker_len: usize) -> Result<usize> {
     buffer
         .windows(marker_len)
         .position(|s| s.iter().collect::<BTreeSet<&char>>().len() == s.len())
         .map(|i| i + marker_len)
-        .ok_or(NotFoundError.into())
+        .ok_or_else(|| NotFoundError.into())
 }
 
 pub fn fix_device(input: &PathBuf) -> Result<(usize, usize)> {

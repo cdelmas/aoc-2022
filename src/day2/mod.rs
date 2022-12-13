@@ -6,7 +6,7 @@ use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Play {
+enum Shape {
     Rock,
     Paper,
     Scissors,
@@ -16,14 +16,14 @@ enum Play {
 #[error("cannot parse")]
 struct ParseError;
 
-impl FromStr for Play {
+impl FromStr for Shape {
     type Err = ParseError;
 
-    fn from_str(s: &str) -> Result<Play, Self::Err> {
+    fn from_str(s: &str) -> Result<Shape, Self::Err> {
         match s {
-            "A" => Ok(Play::Rock),
-            "B" => Ok(Play::Paper),
-            "C" => Ok(Play::Scissors),
+            "A" => Ok(Shape::Rock),
+            "B" => Ok(Shape::Paper),
+            "C" => Ok(Shape::Scissors),
             _ => Err(ParseError {}),
         }
     }
@@ -56,18 +56,18 @@ impl FromStr for Should {
     }
 }
 
-type Hint = (Play, Should);
+type Hint = (Shape, Should);
 
-type Game = (Play, Play);
+type Game = (Shape, Shape);
 
-fn what_to_play(hint: &Hint) -> Play {
+fn what_to_play(hint: &Hint) -> Shape {
     match hint {
-        (Play::Rock, Should::Lose) => Play::Scissors,
-        (Play::Rock, Should::Win) => Play::Paper,
-        (Play::Paper, Should::Lose) => Play::Rock,
-        (Play::Paper, Should::Win) => Play::Scissors,
-        (Play::Scissors, Should::Lose) => Play::Paper,
-        (Play::Scissors, Should::Win) => Play::Rock,
+        (Shape::Rock, Should::Lose) => Shape::Scissors,
+        (Shape::Rock, Should::Win) => Shape::Paper,
+        (Shape::Paper, Should::Lose) => Shape::Rock,
+        (Shape::Paper, Should::Win) => Shape::Scissors,
+        (Shape::Scissors, Should::Lose) => Shape::Paper,
+        (Shape::Scissors, Should::Win) => Shape::Rock,
         (p, Should::Draw) => *p,
     }
 }
@@ -77,40 +77,40 @@ fn parse_game(s: &str) -> anyhow::Result<Game, ParseError> {
     if parts.len() != 2 {
         Err(ParseError {})
     } else {
-        let opponent_play = parts[0].parse::<Play>()?;
+        let opponent_play = parts[0].parse::<Shape>()?;
         let hint = parts[1].parse::<Should>()?;
         Ok((opponent_play, what_to_play(&(opponent_play, hint))))
     }
 }
 
-fn parse_game_old(s: &str) -> anyhow::Result<Game, ParseError> {
-    process_results(s.split(' ').map(Play::from_str), |iter| {
-        iter.collect_tuple().unwrap_or((Play::Rock, Play::Rock))
+fn _parse_game_old(s: &str) -> anyhow::Result<Game, ParseError> {
+    process_results(s.split(' ').map(Shape::from_str), |iter| {
+        iter.collect_tuple().unwrap_or((Shape::Rock, Shape::Rock))
     })
 }
 
 fn run_game(game: &Game) -> GameResult {
     match game {
-        (Play::Rock, Play::Paper) => GameResult::Won,
-        (Play::Rock, Play::Scissors) => GameResult::Loss,
-        (Play::Paper, Play::Rock) => GameResult::Loss,
-        (Play::Paper, Play::Scissors) => GameResult::Won,
-        (Play::Scissors, Play::Rock) => GameResult::Won,
-        (Play::Scissors, Play::Paper) => GameResult::Loss,
+        (Shape::Rock, Shape::Paper) => GameResult::Won,
+        (Shape::Rock, Shape::Scissors) => GameResult::Loss,
+        (Shape::Paper, Shape::Rock) => GameResult::Loss,
+        (Shape::Paper, Shape::Scissors) => GameResult::Won,
+        (Shape::Scissors, Shape::Rock) => GameResult::Won,
+        (Shape::Scissors, Shape::Paper) => GameResult::Loss,
         _ => GameResult::Draw,
     }
 }
 
 fn shape_score(game: &Game) -> u32 {
     match game {
-        (_, Play::Rock) => 1,
-        (_, Play::Paper) => 2,
-        (_, Play::Scissors) => 3,
+        (_, Shape::Rock) => 1,
+        (_, Shape::Paper) => 2,
+        (_, Shape::Scissors) => 3,
     }
 }
 
 fn score(game: &Game) -> u32 {
-    let shape_score = shape_score(&game);
+    let shape_score = shape_score(game);
     let outcome_score = match run_game(game) {
         GameResult::Won => 6,
         GameResult::Draw => 3,

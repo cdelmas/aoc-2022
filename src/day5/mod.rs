@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
-    character::complete::{char, digit1, line_ending, satisfy},
+    character::complete::{char, digit1, line_ending, satisfy, u16},
     combinator::{map_res, success},
     error::{ErrorKind, FromExternalError, ParseError},
     multi::{many1, separated_list1},
@@ -76,9 +76,9 @@ impl Display for Stack {
     }
 }
 
-fn rearrange(stacks: &Vec<Stack>, moves: &[Move]) -> Vec<Stack> {
+fn _rearrange(stacks: &[Stack], moves: &[Move]) -> Vec<Stack> {
     let mut stacks: BTreeMap<StackId, Stack> = stacks
-        .into_iter()
+        .iter()
         .map(|e| (e.id.clone(), e.clone()))
         .collect();
     for m in moves.iter() {
@@ -98,9 +98,9 @@ fn rearrange(stacks: &Vec<Stack>, moves: &[Move]) -> Vec<Stack> {
     stacks.values().cloned().collect()
 }
 
-fn rearrange_part_2(stacks: &Vec<Stack>, moves: &[Move]) -> Vec<Stack> {
+fn rearrange_part_2(stacks: &[Stack], moves: &[Move]) -> Vec<Stack> {
     let mut stacks: BTreeMap<StackId, Stack> = stacks
-        .into_iter()
+        .iter()
         .map(|e| (e.id.clone(), e.clone()))
         .collect();
     for m in moves.iter() {
@@ -184,7 +184,7 @@ fn parse_stack_def_line_nl<'a, E>(i: &'a str) -> IResult<&'a str, Vec<Option<Cra
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, ElvesParseError>,
 {
-    terminated(parse_stack_def_line, line_ending)(&i)
+    terminated(parse_stack_def_line, line_ending)(i)
 }
 
 fn parse_stack_id_line<'a, E>(i: &'a str) -> IResult<&'a str, Vec<StackId>, E>
@@ -198,7 +198,7 @@ fn parse_stack_id_line_nl<'a, E>(i: &'a str) -> IResult<&'a str, Vec<StackId>, E
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, ElvesParseError>,
 {
-    terminated(parse_stack_id_line, line_ending)(&i)
+    terminated(parse_stack_id_line, line_ending)(i)
 }
 
 fn parse_move<'a, E>(i: &'a str) -> IResult<&'a str, Move, E>
@@ -210,14 +210,13 @@ where
     map_res(
         tuple((
             tag("move "),
-            digit1,
+            u16,
             tag(" from "),
             parse_stack_id,
             tag(" to "),
             parse_stack_id,
         )),
         |(_, num, _, from, _, to)| {
-            let num = u16::from_str_radix(num, 10).map_err(|_| ElvesParseError {})?; // TODO: implement From<ParseIntError> for ElvesParseError to remove map_err
             Ok::<Move, ElvesParseError>(Move::new(num, from, to))
         },
     )(i)
@@ -229,7 +228,7 @@ where
         + FromExternalError<&'a str, ElvesParseError>
         + FromExternalError<&'a str, std::num::ParseIntError>,
 {
-    terminated(parse_move, line_ending)(&i)
+    terminated(parse_move, line_ending)(i)
 }
 
 fn parse_moves<'a, E>(i: &'a str) -> IResult<&'a str, Vec<Move>, E>
@@ -253,7 +252,7 @@ where
     E: ParseError<&'a str> + FromExternalError<&'a str, ElvesParseError>,
 {
     let (rest, stack_def_lines) = many1(parse_stack_def_line_nl)(i)?;
-    let (rest, stack_ids) = parse_stack_id_line_nl(&rest)?;
+    let (rest, stack_ids) = parse_stack_id_line_nl(rest)?;
     success(StacksSpecification::new(stack_def_lines, stack_ids))(rest)
 }
 
@@ -278,7 +277,7 @@ fn create_stacks(stacks_specs: StacksSpecification) -> Vec<Stack> {
     stacks
 }
 
-fn code(stacks: &Vec<Stack>) -> String {
+fn code(stacks: &[Stack]) -> String {
     stacks
         .iter()
         .map(|s| s.crates.last().map(|e| e.0).unwrap_or(' '))
@@ -317,7 +316,7 @@ mod tests {
             Move::new(1, StackId('1'), StackId('2')),
         ];
 
-        let res = rearrange(&stacks, &moves);
+        let res = _rearrange(&stacks, &moves);
 
         assert_eq!(
             res,
@@ -340,7 +339,7 @@ mod tests {
         ];
         let moves = vec![Move::new(2, StackId('2'), StackId('1'))];
 
-        let res = rearrange(&stacks, &moves);
+        let res = _rearrange(&stacks, &moves);
 
         assert_eq!(
             res,

@@ -1,22 +1,16 @@
 use anyhow::Result;
-use dendron::{traverse::DftEvent::Close, tree::HierarchyEditGrantError, tree_node, Node};
-use itertools::Itertools;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{char, i32, line_ending},
+    character::complete::{i32, line_ending},
     combinator::{eof, map},
-    error::{ErrorKind, FromExternalError, ParseError},
+    error::ParseError,
     multi::many1,
     sequence::{delimited, terminated},
     IResult,
 };
-use std::collections::BTreeSet;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::fs::read_to_string;
-use std::num::ParseIntError;
 use std::path::PathBuf;
-use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Cycle {
@@ -56,7 +50,7 @@ where
 const FIRST_SIGNAL_IDX: usize = 20;
 const SIGNAL_PERIOD: usize = 40;
 
-fn compute_signal_strength(cycles: &Vec<Cycle>) -> i32 {
+fn compute_signal_strength(cycles: &[Cycle]) -> i32 {
     cycles
         .iter()
         .enumerate()
@@ -81,14 +75,17 @@ fn display_pixel(index: usize, register_x: i32) {
     if sprite_index == 0 {
         println!();
     }
-    if register_x == sprite_index - 1 || register_x == sprite_index || register_x == sprite_index + 1 {
+    if register_x == sprite_index - 1
+        || register_x == sprite_index
+        || register_x == sprite_index + 1
+    {
         print!("#");
     } else {
         print!(".");
     }
 }
 
-fn crt_display(cycles: &Vec<Cycle>) {
+fn crt_display(cycles: &[Cycle]) {
     let mut current_x = 1;
     for (i, cycle) in cycles.iter().enumerate() {
         display_pixel(i, current_x);

@@ -43,18 +43,11 @@ where
     })
 }
 
-fn range_included<T>(range: &RangeInclusive<T>, candidate: &RangeInclusive<T>) -> bool
-where
-    T: PartialOrd<T>,
-{
-    range.contains(&candidate.start()) && range.contains(&candidate.end())
-}
-
 fn range_overlaps<T>(range: &RangeInclusive<T>, candidate: &RangeInclusive<T>) -> bool
 where
     T: PartialOrd<T>,
 {
-    range.contains(&candidate.start()) || range.contains(&candidate.end())
+    range.contains(candidate.start()) || range.contains(candidate.end())
 }
 
 pub fn ship_unload_overlaps(input: &PathBuf) -> Result<u32> {

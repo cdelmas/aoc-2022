@@ -1,12 +1,11 @@
 use anyhow::Result;
-use dendron::{traverse::DftEvent::Close, tree::HierarchyEditGrantError, tree_node, Node};
-use itertools::Itertools;
+use dendron::{traverse::DftEvent::Close, Node};
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{alphanumeric1, char, digit1, line_ending, space1},
     combinator::{eof, map, map_res, recognize},
-    error::{ErrorKind, FromExternalError, ParseError},
+    error::{FromExternalError, ParseError},
     multi::fold_many1,
     sequence::{delimited, terminated},
     IResult,
@@ -14,7 +13,6 @@ use nom::{
 use std::fs::read_to_string;
 use std::num::ParseIntError;
 use std::path::PathBuf;
-use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq)]
 enum TreeBuildCommand {
@@ -40,33 +38,23 @@ impl FsNode {
         FsNode::FsDirectory(FsNodeInfo::new(name, 0))
     }
 
-    fn name(self: &Self) -> &String {
+    fn name(&self) -> &String {
         match &self {
             FsNode::FsDirectory(info) => &info.name,
             FsNode::FsFile(info) => &info.name,
         }
     }
 
-    fn size(self: &Self) -> usize {
+    fn size(&self) -> usize {
         match &self {
             FsNode::FsDirectory(info) => info.size,
             FsNode::FsFile(info) => info.size,
         }
     }
 
-    fn increase_size(self: &mut Self, sz: usize) {
-        match self {
-            FsNode::FsDirectory(info) => {
-                info.size += sz;
-            }
-            _ => (),
-        }
-    }
-
-    fn is_directory(&self) -> bool {
-        match self {
-            FsNode::FsDirectory(_) => true,
-            FsNode::FsFile(_) => false,
+    fn increase_size(&mut self, sz: usize) {
+        if let FsNode::FsDirectory(info) = self {
+            info.size += sz;
         }
     }
 }
@@ -215,7 +203,7 @@ fn smallest_directory_to_delete_size(fs: &Node<FsNode>, min_size: usize) -> usiz
                 let node: &FsNode = &e.borrow_data();
                 match node {
                     FsNode::FsDirectory(info) if info.size >= min_size => Some(info.size),
-                    FsNode::FsDirectory(info) => None,
+                    FsNode::FsDirectory(_) => None,
                     _ => None,
                 }
             }
@@ -229,7 +217,7 @@ pub fn total_size_of_small_directories_and_smallest_to_delete(
     input: &PathBuf,
 ) -> Result<(usize, usize)> {
     let data = read_to_string(input)?;
-    let (rest, fs) = file_system::<()>(&data)?;
+    let (_, fs) = file_system::<()>(&data)?;
     let total_size = total_size_of_directories_up_to(&fs, 100000);
     let fs_size = fs.borrow_data().size();
     let space_to_clear = fs_size - (70_000_000 - 30_000_000);
@@ -240,6 +228,7 @@ pub fn total_size_of_small_directories_and_smallest_to_delete(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dendron::tree_node;
 
     #[test]
     fn parse_dir_name() {

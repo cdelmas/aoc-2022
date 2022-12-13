@@ -52,7 +52,7 @@ pub fn priorities_2(input: &PathBuf) -> Result<u32> {
                     let common_items_1 = part1.intersection(&part2).collect::<BTreeSet<&char>>();
                     let common_items_2 = part2.intersection(&part3).collect::<BTreeSet<&char>>();
                     let common_item = common_items_1.intersection(&common_items_2).next().unwrap(); // we are sur we have a result, so unwrap is simple
-                    priority(&common_item)
+                    priority(common_item)
                 } else {
                     0
                 }

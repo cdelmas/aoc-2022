@@ -1,17 +1,16 @@
 use anyhow::Result;
-use itertools::Itertools;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
-fn count_visible_trees(data: &Vec<u8>, map_size: (usize, usize)) -> u16 {
+fn count_visible_trees(data: &[u8], map_size: (usize, usize)) -> u16 {
     let (nb_rows, nb_columns) = map_size;
     let mut visible_trees = 0;
     for (i, c) in data.iter().enumerate() {
         let to_north = (i % nb_columns)..i;
         let to_south = (i + nb_columns)..((nb_rows * nb_columns) + (i % nb_columns));
         let to_west = (i - i % nb_columns)..i;
-        let to_east = (i + 1..(i - (i % nb_columns) + nb_columns));
+        let to_east = i + 1..(i - (i % nb_columns) + nb_columns);
         if to_north
             .into_iter()
             .step_by(nb_columns)
@@ -30,16 +29,15 @@ fn count_visible_trees(data: &Vec<u8>, map_size: (usize, usize)) -> u16 {
     visible_trees
 }
 
-fn find_best_spot(data: &Vec<u8>, map_size: (usize, usize)) -> u32 {
+fn find_best_spot(data: &[u8], map_size: (usize, usize)) -> u32 {
     let (nb_rows, nb_columns) = map_size;
-    let mut visible_trees = 0;
     data.iter()
         .enumerate()
         .map(|(i, c)| {
             let to_north = (i % nb_columns)..i;
             let to_south = (i + nb_columns)..((nb_rows * nb_columns) + (i % nb_columns));
             let to_west = (i - i % nb_columns)..i;
-            let to_east = (i + 1..(i - (i % nb_columns) + nb_columns));
+            let to_east = i + 1..(i - (i % nb_columns) + nb_columns);
 
             let north_score = to_north
                 .into_iter()

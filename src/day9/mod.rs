@@ -1,21 +1,17 @@
 use anyhow::Result;
-use dendron::{traverse::DftEvent::Close, tree::HierarchyEditGrantError, tree_node, Node};
-use itertools::Itertools;
 use nom::{
     branch::alt,
     character::complete::{char, line_ending, u8},
     combinator::{eof, map},
-    error::{ErrorKind, FromExternalError, ParseError},
+    error::ParseError,
     multi::many1,
-    sequence::{separated_pair, terminated, tuple},
+    sequence::{separated_pair, terminated},
     IResult,
 };
 use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::fs::read_to_string;
-use std::num::ParseIntError;
 use std::path::PathBuf;
-use thiserror::Error;
 
 #[derive(Debug, PartialEq)]
 enum Move {
@@ -28,26 +24,26 @@ enum Move {
 impl Move {
     fn on_x(val: i16) -> Self {
         if val < 0 {
-            Move::Left(val.abs() as u8)
+            Move::Left(val.unsigned_abs() as u8)
         } else {
-            Move::Right(val.abs() as u8)
+            Move::Right(val.unsigned_abs() as u8)
         }
     }
 
     fn on_y(val: i16) -> Self {
         if val < 0 {
-            Move::Down(val.abs() as u8)
+            Move::Down(val.unsigned_abs() as u8)
         } else {
-            Move::Up(val.abs() as u8)
+            Move::Up(val.unsigned_abs() as u8)
         }
     }
 
     fn small_step(mv: &Self) -> Self {
         match mv {
-            Move::Up(d) => Move::Up(if *d != 0 { 1 } else { 0 }),
-            Move::Down(d) => Move::Down(if *d != 0 { 1 } else { 0 }),
-            Move::Left(d) => Move::Left(if *d != 0 { 1 } else { 0 }),
-            Move::Right(d) => Move::Right(if *d != 0 { 1 } else { 0 }),
+            Move::Up(d) => Move::Up(u8::from(*d != 0)),
+            Move::Down(d) => Move::Down(u8::from(*d != 0)),
+            Move::Left(d) => Move::Left(u8::from(*d != 0)),
+            Move::Right(d) => Move::Right(u8::from(*d != 0)),
         }
     }
 }
@@ -73,19 +69,20 @@ impl Display for Position {
 }
 
 impl Position {
+    #[allow(dead_code)]
     fn new(point: (i16, i16)) -> Self {
         Self(point)
     }
 
-    fn x(self: &Self) -> i16 {
+    fn x(&self) -> i16 {
         self.0 .0
     }
 
-    fn y(self: &Self) -> i16 {
+    fn y(&self) -> i16 {
         self.0 .1
     }
 
-    fn move_to(self: &mut Self, mv: &Move) {
+    fn move_to(&mut self, mv: &Move) {
         match mv {
             Move::Up(d) => self.0 = (self.x(), self.y() + *d as i16),
             Move::Down(d) => self.0 = (self.x(), self.y() - *d as i16),
@@ -94,7 +91,7 @@ impl Position {
         }
     }
 
-    fn move_next_to(self: &mut Self, target: &Self) -> Vec<Position> {
+    fn move_next_to(&mut self, target: &Self) -> Vec<Position> {
         let mut tracker = vec![];
         while !self.is_around(target) {
             let moves = self.path_to(target);
@@ -106,7 +103,7 @@ impl Position {
         tracker
     }
 
-    fn path_to(self: &Self, other: &Self) -> Vec<Move> {
+    fn path_to(&self, other: &Self) -> Vec<Move> {
         match (other.x() - self.x(), other.y() - self.y()) {
             (0, 0) => vec![],
             (0, y) => vec![Move::small_step(&Move::on_y(y))],
@@ -118,7 +115,7 @@ impl Position {
         }
     }
 
-    fn is_around(self: &Self, other: &Self) -> bool {
+    fn is_around(&self, other: &Self) -> bool {
         (self.x() - other.x()).abs() <= 1 && (self.y() - other.y()).abs() <= 1
     }
 }
@@ -163,7 +160,7 @@ fn move_rope(head_moves: &[Move]) -> usize {
         rope[HEAD_INDEX].move_to(mv);
         //println!("Now at {}", rope[HEAD_INDEX]);
         for i in 1..ROPE_SIZE {
-            let mut local_head = rope[i - 1];
+            let local_head = rope[i - 1];
             let mut local_tail = rope[i];
             /*println!(
                 "Moving part {} from {} next to {}",
