@@ -1,4 +1,5 @@
 mod day1;
+mod day10;
 mod day2;
 mod day3;
 mod day4;
@@ -83,7 +84,15 @@ fn main() {
 
     let nb_tail_positions = day9::nb_tail_positions(&PathBuf::from("data/day_9_input.txt"));
     match nb_tail_positions {
-        Ok(nb_tail_positions) => println!("Tail gone through {} positions buggy 🙈", nb_tail_positions),
+        Ok(nb_tail_positions) => {
+            println!("Tail gone through {} positions buggy 🙈", nb_tail_positions)
+        }
+        Err(_) => eprintln!("Something went wrong…"),
+    }
+
+    let signal_strength = day10::sum_of_signal_strengths(&PathBuf::from("data/day_10_input.txt"));
+    match signal_strength {
+        Ok(signal_strength) => println!("Signal strength total: {}", signal_strength),
         Err(_) => eprintln!("Something went wrong…"),
     }
 }
