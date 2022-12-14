@@ -77,10 +77,8 @@ impl Display for Stack {
 }
 
 fn _rearrange(stacks: &[Stack], moves: &[Move]) -> Vec<Stack> {
-    let mut stacks: BTreeMap<StackId, Stack> = stacks
-        .iter()
-        .map(|e| (e.id.clone(), e.clone()))
-        .collect();
+    let mut stacks: BTreeMap<StackId, Stack> =
+        stacks.iter().map(|e| (e.id.clone(), e.clone())).collect();
     for m in moves.iter() {
         let mut swap = Vec::with_capacity(m.num.into());
         stacks.entry(m.from.clone()).and_modify(|c| {
@@ -99,10 +97,8 @@ fn _rearrange(stacks: &[Stack], moves: &[Move]) -> Vec<Stack> {
 }
 
 fn rearrange_part_2(stacks: &[Stack], moves: &[Move]) -> Vec<Stack> {
-    let mut stacks: BTreeMap<StackId, Stack> = stacks
-        .iter()
-        .map(|e| (e.id.clone(), e.clone()))
-        .collect();
+    let mut stacks: BTreeMap<StackId, Stack> =
+        stacks.iter().map(|e| (e.id.clone(), e.clone())).collect();
     for m in moves.iter() {
         let mut swap = Vec::with_capacity(m.num.into());
         stacks.entry(m.from.clone()).and_modify(|c| {
@@ -216,9 +212,7 @@ where
             tag(" to "),
             parse_stack_id,
         )),
-        |(_, num, _, from, _, to)| {
-            Ok::<Move, ElvesParseError>(Move::new(num, from, to))
-        },
+        |(_, num, _, from, _, to)| Ok::<Move, ElvesParseError>(Move::new(num, from, to)),
     )(i)
 }
 

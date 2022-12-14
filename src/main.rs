@@ -96,4 +96,11 @@ fn main() {
         Ok(signal_strength) => println!("Signal strength total: {}", signal_strength),
         Err(_) => eprintln!("Something went wrong…"),
     }
+
+    let active_monkeys_score =
+        day11::most_active_monkeys_score(&PathBuf::from("data/day_11_input.txt"));
+    match active_monkeys_score {
+        Ok(active_monkeys_score) => println!("Active monkeys score: {}", active_monkeys_score),
+        Err(_) => eprintln!("Something went wrong…"),
+    }
 }
