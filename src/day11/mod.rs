@@ -2,21 +2,51 @@ use anyhow::Result;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{char, digit1, line_ending, space1, u64, u8},
-    combinator::{eof, map},
+    character::complete::{char, digit1, line_ending, one_of, space1, u64, u8},
+    combinator::{all_consuming, eof, map, value},
     error::ParseError,
     multi::separated_list1,
-    sequence::{delimited, preceded, separated_pair, terminated},
-    IResult,
+    sequence::{delimited, preceded, separated_pair, terminated, tuple},
+    Finish, IResult,
+};
+use nom_locate::LocatedSpan;
+use nom_supreme::{
+    error::{BaseErrorKind, ErrorTree, GenericErrorTree},
+    final_parser::final_parser,
 };
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
+pub type Span<'a> = LocatedSpan<&'a str>;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Op {
-    Add(u64),
-    Mult(u64),
-    Square,
+pub enum Operation {
+    Add(Term, Term),
+    Mul(Term, Term),
+}
+
+impl Operation {
+    pub fn eval(self, old: u64) -> u64 {
+        match self {
+            Operation::Add(l, r) => l.eval(old) + r.eval(old),
+            Operation::Mul(l, r) => l.eval(old) * r.eval(old),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Term {
+    Old,
+    Constant(u64),
+}
+
+impl Term {
+    pub fn eval(self, old: u64) -> u64 {
+        match self {
+            Term::Old => old,
+            Term::Constant(c) => c,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -25,15 +55,20 @@ struct Item(u64);
 struct MonkeyId(u8);
 
 #[derive(Debug, PartialEq)]
-struct Monkey {
+pub struct Monkey {
     id: MonkeyId,
     items: Vec<Item>,
-    operation: Op,
+    operation: Operation,
     throw_decision: ThrowDecision,
 }
 
 impl Monkey {
-    fn new(id: MonkeyId, items: &[Item], operation: Op, throw_decision: ThrowDecision) -> Self {
+    fn new(
+        id: MonkeyId,
+        items: &[Item],
+        operation: Operation,
+        throw_decision: ThrowDecision,
+    ) -> Self {
         Monkey {
             id,
             items: items.to_vec(),
@@ -43,11 +78,7 @@ impl Monkey {
     }
 
     fn inspect_item(&self, item: Item, md: u64) -> (MonkeyId, Item) {
-        let new_worry_value = match self.operation {
-            Op::Add(x) => (item.0 % md) + x,
-            Op::Mult(x) => (item.0 % md) * x,
-            Op::Square => (item.0 % md) * (item.0 % md),
-        };
+        let new_worry_value = self.operation.eval(item.0 % md);
 
         (
             self.throw_decision.take_decision(new_worry_value),
@@ -81,9 +112,9 @@ impl ThrowDecision {
     }
 }
 
-fn monkey_id<'a, E>(i: &'a str) -> IResult<&'a str, MonkeyId, E>
+fn monkey_id<'a, E>(i: Span<'a>) -> IResult<Span<'a>, MonkeyId, E>
 where
-    E: ParseError<&'a str>,
+    E: ParseError<Span<'a>>,
 {
     map(
         delimited(tag("Monkey "), u8, terminated(char(':'), line_ending)),
@@ -91,9 +122,9 @@ where
     )(i)
 }
 
-fn items<'a, E>(i: &'a str) -> IResult<&'a str, Vec<Item>, E>
+fn items<'a, E>(i: Span<'a>) -> IResult<Span<'a>, Vec<Item>, E>
 where
-    E: ParseError<&'a str>,
+    E: ParseError<Span<'a>>,
 {
     map(
         delimited(
@@ -105,37 +136,33 @@ where
     )(i)
 }
 
-fn operation<'a, E>(i: &'a str) -> IResult<&'a str, Op, E>
+fn term<'a, E>(i: Span<'a>) -> IResult<Span<'a>, Term, E>
 where
-    E: ParseError<&'a str>,
+    E: ParseError<Span<'a>>,
 {
-    map(
-        delimited(
-            preceded(space1, tag("Operation: new = old ")),
-            alt((
-                separated_pair(alt((char('+'), char('*'))), char(' '), digit1),
-                separated_pair(char('*'), char(' '), tag("old")),
-            )),
-            line_ending,
-        ),
-        |(op, val): (char, &str)| {
-            if val == "old" {
-                Op::Square
-            } else {
-                let val = val.parse::<u64>().unwrap(); // is unwrap dangerous here?
-                match op {
-                    '+' => Op::Add(val),
-                    '*' => Op::Mult(val),
-                    _ => Op::Add(0), // cannot happen, the parser will fail
-                }
-            }
-        },
-    )(i)
+    alt((value(Term::Old, tag("old")), map(u64, Term::Constant)))(i)
 }
 
-fn throw_decision<'a, E>(i: &'a str) -> IResult<&'a str, ThrowDecision, E>
+fn operation<'a, E>(i: Span<'a>) -> IResult<Span<'a>, Operation, E>
 where
-    E: ParseError<&'a str>,
+    E: ParseError<Span<'a>>,
+{
+    let (i, (l, op, r)) = delimited(
+        preceded(space1, tag("Operation: new = ")),
+        tuple((term, preceded(space1, one_of("*+")), preceded(space1, term))),
+        line_ending,
+    )(i)?;
+    let op = match op {
+        '*' => Operation::Mul(l, r),
+        '+' => Operation::Add(l, r),
+        _ => unreachable!(),
+    };
+    Ok((i, op))
+}
+
+fn throw_decision<'a, E>(i: Span<'a>) -> IResult<Span<'a>, ThrowDecision, E>
+where
+    E: ParseError<Span<'a>>,
 {
     let (rest, modulus) = delimited(
         preceded(space1, tag("Test: divisible by ")),
@@ -158,9 +185,9 @@ where
     ))
 }
 
-fn monkey<'a, E>(i: &'a str) -> IResult<&'a str, Monkey, E>
+fn monkey<'a, E>(i: Span<'a>) -> IResult<Span<'a>, Monkey, E>
 where
-    E: ParseError<&'a str>,
+    E: ParseError<Span<'a>>,
 {
     let (rest, monkey_id) = monkey_id(i)?;
     let (rest, items) = items(rest)?;
@@ -173,9 +200,9 @@ where
     ))
 }
 
-fn monkeys<'a, E>(i: &'a str) -> IResult<&'a str, Vec<Monkey>, E>
+pub fn monkeys<'a, E>(i: Span<'a>) -> IResult<Span<'a>, Vec<Monkey>, E>
 where
-    E: ParseError<&'a str>,
+    E: ParseError<Span<'a>>,
 {
     separated_list1(line_ending, monkey)(i)
 }
@@ -205,16 +232,10 @@ fn rounds(monkeys: &[Monkey], n: u16) -> Vec<u64> {
     nb_item_inspections
 }
 
-fn compute_score(monkeys: &[Monkey]) -> u64 {
+pub fn compute_score(monkeys: &[Monkey]) -> u64 {
     let mut inspections = rounds(monkeys, 10000);
     inspections.sort_by_key(|&e| std::cmp::Reverse(e));
     inspections.iter().take(2).product()
-}
-
-pub fn most_active_monkeys_score(input: &PathBuf) -> Result<u64> {
-    let data = read_to_string(input)?;
-    let (_, monkeys) = monkeys::<()>(&data)?;
-    Ok(compute_score(&monkeys))
 }
 
 #[cfg(test)]
@@ -225,51 +246,54 @@ mod tests {
 
     #[test]
     fn parse_monkey() {
-        let data = r#"Monkey 0:
+        let data = Span::new(
+            r#"Monkey 0:
   Starting items: 79, 98
   Operation: new = old * 19
   Test: divisible by 23
     If true: throw to monkey 2
-    If false: throw to monkey 3"#;
+    If false: throw to monkey 3"#,
+        );
 
-        let monkey = monkey::<nom::error::Error<&str>>(&data);
+        let monkey = monkey::<nom::error::Error<Span>>(data);
 
-        assert_that!(monkey).is_ok().is_equal_to(&(
-            "",
-            Monkey::new(
-                MonkeyId(0),
-                &[Item(79), Item(98)],
-                Op::Mult(19),
-                ThrowDecision::new(23, MonkeyId(2), MonkeyId(3)),
-            ),
+        assert_that!(monkey).is_ok();
+        let monkey = monkey.unwrap().1;
+        assert_that!(monkey).is_equal_to(&Monkey::new(
+            MonkeyId(0),
+            &[Item(79), Item(98)],
+            Operation::Mul(Term::Old, Term::Constant(19)),
+            ThrowDecision::new(23, MonkeyId(2), MonkeyId(3)),
         ));
     }
 
     #[test]
     fn parse_monkey_square() {
-        let data = r#"Monkey 0:
+        let data = Span::new(
+            r#"Monkey 0:
   Starting items: 79, 98
   Operation: new = old * old
   Test: divisible by 23
     If true: throw to monkey 2
-    If false: throw to monkey 3"#;
+    If false: throw to monkey 3"#,
+        );
 
-        let monkey = monkey::<nom::error::Error<&str>>(&data);
+        let monkey = monkey::<nom::error::Error<Span>>(data);
 
-        assert_that!(monkey).is_ok().is_equal_to(&(
-            "",
-            Monkey::new(
-                MonkeyId(0),
-                &[Item(79), Item(98)],
-                Op::Square,
-                ThrowDecision::new(23, MonkeyId(2), MonkeyId(3)),
-            ),
+        assert_that!(monkey).is_ok();
+        let monkey = monkey.unwrap().1;
+        assert_that!(monkey).is_equal_to(&Monkey::new(
+            MonkeyId(0),
+            &[Item(79), Item(98)],
+            Operation::Mul(Term::Old, Term::Old),
+            ThrowDecision::new(23, MonkeyId(2), MonkeyId(3)),
         ));
     }
 
     #[test]
     fn parse_monkeys() {
-        let data = r#"Monkey 0:
+        let data = Span::new(
+            r#"Monkey 0:
   Starting items: 79, 98
   Operation: new = old * 19
   Test: divisible by 23
@@ -281,27 +305,27 @@ Monkey 1:
   Operation: new = old + 6
   Test: divisible by 19
     If true: throw to monkey 2
-    If false: throw to monkey 0"#;
+    If false: throw to monkey 0"#,
+        );
 
-        let monkeys = monkeys::<nom::error::Error<&str>>(&data);
+        let monkeys = monkeys::<nom::error::Error<Span>>(data);
 
-        assert_that!(monkeys).is_ok().is_equal_to(&(
-            "",
-            vec![
-                Monkey::new(
-                    MonkeyId(0),
-                    &[Item(79), Item(98)],
-                    Op::Mult(19),
-                    ThrowDecision::new(23, MonkeyId(2), MonkeyId(3)),
-                ),
-                Monkey::new(
-                    MonkeyId(1),
-                    &[Item(54), Item(65), Item(75), Item(74)],
-                    Op::Add(6),
-                    ThrowDecision::new(19, MonkeyId(2), MonkeyId(0)),
-                ),
-            ],
-        ));
+        assert_that!(monkeys).is_ok();
+        let monkeys = monkeys.unwrap().1;
+        assert_that!(monkeys).is_equal_to(&vec![
+            Monkey::new(
+                MonkeyId(0),
+                &[Item(79), Item(98)],
+                Operation::Mul(Term::Old, Term::Constant(19)),
+                ThrowDecision::new(23, MonkeyId(2), MonkeyId(3)),
+            ),
+            Monkey::new(
+                MonkeyId(1),
+                &[Item(54), Item(65), Item(75), Item(74)],
+                Operation::Add(Term::Old, Term::Constant(6)),
+                ThrowDecision::new(19, MonkeyId(2), MonkeyId(0)),
+            ),
+        ]);
     }
 
     #[test]
@@ -310,25 +334,25 @@ Monkey 1:
             Monkey::new(
                 MonkeyId(0),
                 &[Item(79), Item(98)],
-                Op::Mult(19),
+                Operation::Mul(Term::Old, Term::Constant(19)),
                 ThrowDecision::new(23, MonkeyId(2), MonkeyId(3)),
             ),
             Monkey::new(
                 MonkeyId(1),
                 &[Item(54), Item(65), Item(75), Item(74)],
-                Op::Add(6),
+                Operation::Add(Term::Old, Term::Constant(6)),
                 ThrowDecision::new(19, MonkeyId(2), MonkeyId(0)),
             ),
             Monkey::new(
                 MonkeyId(2),
                 &[Item(79), Item(60), Item(97)],
-                Op::Square,
+                Operation::Mul(Term::Old, Term::Old),
                 ThrowDecision::new(13, MonkeyId(1), MonkeyId(3)),
             ),
             Monkey::new(
                 MonkeyId(3),
                 &[Item(74)],
-                Op::Add(3),
+                Operation::Add(Term::Old, Term::Constant(3)),
                 ThrowDecision::new(17, MonkeyId(0), MonkeyId(1)),
             ),
         ];
@@ -344,25 +368,25 @@ Monkey 1:
             Monkey::new(
                 MonkeyId(0),
                 &[Item(79), Item(98)],
-                Op::Mult(19),
+                Operation::Mul(Term::Old, Term::Constant(19)),
                 ThrowDecision::new(23, MonkeyId(2), MonkeyId(3)),
             ),
             Monkey::new(
                 MonkeyId(1),
                 &[Item(54), Item(65), Item(75), Item(74)],
-                Op::Add(6),
+                Operation::Add(Term::Old, Term::Constant(6)),
                 ThrowDecision::new(19, MonkeyId(2), MonkeyId(0)),
             ),
             Monkey::new(
                 MonkeyId(2),
                 &[Item(79), Item(60), Item(97)],
-                Op::Square,
+                Operation::Mul(Term::Old, Term::Old),
                 ThrowDecision::new(13, MonkeyId(1), MonkeyId(3)),
             ),
             Monkey::new(
                 MonkeyId(3),
                 &[Item(74)],
-                Op::Add(3),
+                Operation::Add(Term::Old, Term::Constant(3)),
                 ThrowDecision::new(17, MonkeyId(0), MonkeyId(1)),
             ),
         ];
@@ -371,48 +395,4 @@ Monkey 1:
 
         assert_that!(result).is_equal_to(2713310158);
     }
-
-    /*    #[test]
-        fn twenty_rounds() {
-            let mut monkeys = vec![
-                Monkey::new(
-                    MonkeyId(0),
-                    &[Item(79), Item(98)],
-                    Op::Mult(19),
-                    ThrowDecision::new(Test::DivisibleBy(23), MonkeyId(2), MonkeyId(3)),
-                ),
-                Monkey::new(
-                    MonkeyId(1),
-                    &[Item(54), Item(65), Item(75), Item(74)],
-                    Op::Add(6),
-                    ThrowDecision::new(Test::DivisibleBy(19), MonkeyId(2), MonkeyId(0)),
-                ),
-                Monkey::new(
-                    MonkeyId(2),
-                    &[Item(79), Item(60), Item(97)],
-                    Op::Square,
-                    ThrowDecision::new(Test::DivisibleBy(13), MonkeyId(1), MonkeyId(3)),
-                ),
-                Monkey::new(
-                    MonkeyId(3),
-                    &[Item(74)],
-                    Op::Add(3),
-                    ThrowDecision::new(Test::DivisibleBy(17), MonkeyId(0), MonkeyId(1)),
-                ),
-            ];
-
-            let state = rounds(&monkeys, 20);
-
-            assert_that!(state[0]).is_equal_to(&vec![Item(10), Item(12), Item(14), Item(26), Item(34)]);
-            assert_that!(state[1]).is_equal_to(&vec![
-                Item(245),
-                Item(93),
-                Item(53),
-                Item(199),
-                Item(115),
-            ]);
-            assert_that!(state[2]).is_empty();
-            assert_that!(state[3]).is_empty();
-        }
-    */
 }

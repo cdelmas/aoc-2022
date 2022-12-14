@@ -12,6 +12,24 @@ mod day9;
 
 use std::path::PathBuf;
 
+use miette::GraphicalReportHandler;
+use nom_supreme::{
+    error::{BaseErrorKind, ErrorTree, GenericErrorTree},
+    final_parser::final_parser,
+};
+
+#[derive(thiserror::Error, Debug, miette::Diagnostic)]
+#[error("bad input")]
+struct BadInput<'a> {
+    #[source_code]
+    src: &'a str,
+
+    #[label("{kind}")]
+    bad_bit: miette::SourceSpan,
+
+    kind: BaseErrorKind<&'a str, Box<dyn std::error::Error + Send + Sync>>,
+}
+
 fn main() {
     // day1
     let calories = day1::calories_carried(&PathBuf::from("data/day_1_input.txt"));
@@ -97,10 +115,36 @@ fn main() {
         Err(_) => eprintln!("Something went wrong…"),
     }
 
-    let active_monkeys_score =
-        day11::most_active_monkeys_score(&PathBuf::from("data/day_11_input.txt"));
-    match active_monkeys_score {
-        Ok(active_monkeys_score) => println!("Active monkeys score: {}", active_monkeys_score),
-        Err(_) => eprintln!("Something went wrong…"),
+    let input = PathBuf::from("data/day_11_input.txt");
+    let raw_data = std::fs::read_to_string(input).unwrap();
+
+    let data = day11::Span::new(&raw_data);
+    let monkeys: Result<Vec<day11::Monkey>, ErrorTree<day11::Span>> =
+        final_parser(day11::monkeys::<ErrorTree<day11::Span>>)(data);
+    match monkeys {
+        Ok(monkeys) => {
+            let active_monkeys_score = day11::compute_score(&monkeys);
+            println!("Active monkeys score: {}", active_monkeys_score);
+        }
+        Err(e) => {
+            match e {
+                GenericErrorTree::Base { location, kind } => {
+                    let offset = location.location_offset().into();
+                    let err = BadInput {
+                        src: &raw_data,
+                        bad_bit: miette::SourceSpan::new(offset, 0.into()),
+                        kind,
+                    };
+                    let mut s = String::new();
+                    GraphicalReportHandler::new()
+                        .render_report(&mut s, &err)
+                        .unwrap();
+                    println!("{s}");
+                }
+                GenericErrorTree::Stack { .. } => todo!("stack"),
+                GenericErrorTree::Alt(_) => todo!("alt"),
+            }
+            return;
+        }
     }
 }
