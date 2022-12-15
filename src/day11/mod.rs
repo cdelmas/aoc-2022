@@ -1,21 +1,14 @@
-use anyhow::Result;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{char, digit1, line_ending, one_of, space1, u64, u8},
-    combinator::{all_consuming, eof, map, value},
+    character::complete::{char, line_ending, one_of, space1, u64, u8},
+    combinator::{eof, map, value},
     error::ParseError,
     multi::separated_list1,
-    sequence::{delimited, preceded, separated_pair, terminated, tuple},
-    Finish, IResult,
+    sequence::{delimited, preceded, terminated, tuple},
+    IResult,
 };
 use nom_locate::LocatedSpan;
-use nom_supreme::{
-    error::{BaseErrorKind, ErrorTree, GenericErrorTree},
-    final_parser::final_parser,
-};
-use std::fs::read_to_string;
-use std::path::PathBuf;
 
 pub type Span<'a> = LocatedSpan<&'a str>;
 
