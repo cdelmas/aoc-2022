@@ -1,6 +1,7 @@
 mod day1;
 mod day10;
 mod day11;
+mod day12;
 mod day2;
 mod day3;
 mod day4;
@@ -146,5 +147,11 @@ fn main() {
             }
             return;
         }
+    }
+
+    let journey_length = day12::great_journey(&PathBuf::from("data/day_12_input.txt"));
+    match journey_length {
+        Ok(journey_length) => println!("Path length is {journey_length}"),
+        Err(e) => eprintln!("Something went wrong:{e:?}"),
     }
 }
